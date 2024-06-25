@@ -9,7 +9,7 @@ namespace BaseDecoder
         public static string AutoDecoder(string input) // Assign each number of the identified base to a character (in order of which the character appears)
         {
             StringBuilder result = new(input);
-            List<char> usedChars = [];
+            char[] usedChars = new char[input.Length];
             int counter = 0;
             for (int i = 0; i < input.Length; i++)
             {
@@ -18,10 +18,10 @@ namespace BaseDecoder
 
                 if (!usedChars.Contains(c))
                 {
-                    usedChars.Add(c);
+                    usedChars[counter] = c;
                     counter++;
                 }
-                result[i] = Convert.ToChar(usedChars.IndexOf(c).ToString());
+                result[i] = Convert.ToChar(usedChars.ToList().IndexOf(c).ToString());
                 //Console.Write($"\n{c} -> {Convert.ToChar(counter.ToString())} : {result}"); // DEBUG INFO
             }
             return result.ToString();
