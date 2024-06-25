@@ -5,7 +5,7 @@ namespace BaseDecoder
 {
     internal class Assignment
     {
-        public static string AutoDecoder(string input)
+        public static string AutoDecoder(string input) // Assign each number of the identified base to a character (in order of which the character appears)
         {
             string result = input;
             char[] usedChars = new char[input.Length];
@@ -26,7 +26,7 @@ namespace BaseDecoder
             return result;
         }
 
-        public static List<string> GetAllCombinations(string input)
+        public static List<string> GetAllCombinations(string input) // Get all possible combinations of numbers of the identified base
         {
             List<char> uniqueChars = input.Where(c => c != ' ').Distinct().ToList();
             int uniqueCount = uniqueChars.Count;
@@ -52,11 +52,9 @@ namespace BaseDecoder
             return input.Replace(" ", "").Distinct().Count();
         }
 
-
         private static IEnumerable<List<T>> GetPermutations<T>(IEnumerable<T> list, int length)
         {
             if (length == 1) { return list.Select(t => new List<T> { t }); }
-
             return GetPermutations(list, length - 1).SelectMany(t => list.Where(e => !t.Contains(e)), (t1, t2) => t1.Concat([t2]).ToList());
         }
     }
