@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Text;
 
 namespace BaseDecoder
 {
@@ -7,8 +8,8 @@ namespace BaseDecoder
     {
         public static string AutoDecoder(string input) // Assign each number of the identified base to a character (in order of which the character appears)
         {
-            string result = input;
-            char[] usedChars = new char[input.Length];
+            StringBuilder result = new(input);
+            List<char> usedChars = [];
             int counter = 0;
             for (int i = 0; i < input.Length; i++)
             {
@@ -17,13 +18,13 @@ namespace BaseDecoder
 
                 if (!usedChars.Contains(c))
                 {
-                    usedChars[counter] = c;
-                    //Console.WriteLine(c + " -> " + counter); DEBUG INFO
+                    usedChars.Add(c);
                     counter++;
                 }
-                result = result.Replace(c, usedChars.ToList().IndexOf(c).ToString()[0]);
+                result[i] = Convert.ToChar(usedChars.IndexOf(c).ToString());
+                //Console.Write($"\n{c} -> {Convert.ToChar(counter.ToString())} : {result}"); // DEBUG INFO
             }
-            return result;
+            return result.ToString();
         }
 
         public static List<string> GetAllCombinations(string input) // Get all possible combinations of numbers of the identified base
