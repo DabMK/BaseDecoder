@@ -8,6 +8,7 @@ namespace BaseDecoder
     internal class Program
     {
         readonly private static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
 
         private static void Main(string[] args)
         {
@@ -21,12 +22,16 @@ namespace BaseDecoder
             bool fromAscii = false;
 
             // Checks
-            if (args.Length != 3)
+            if (args.Length < 1)
+            {
+                Error(true);
+            }
+            else if (args.Length != 3 && args.Length != 4)
             {
                 Error();
             }
             data = args[0];
-            if (args[2].Equals("ASCII", StringComparison.OrdinalIgnoreCase)) // Check if output has to be in ASCII
+            if (args[2].Equals("ASCII", o)) // Check if output has to be in ASCII
             {
                 ascii = true;
             }
@@ -35,7 +40,7 @@ namespace BaseDecoder
                 Error();
             }
             if (ascii) { resultBase = "ASCII"; } else { resultBase = $"base {toBase}"; }
-            if (args[1].Equals("auto", StringComparison.OrdinalIgnoreCase))
+            if (args[1].Equals("auto", o))
             {
                 fromBase = Assignment.BaseIdentifier(data);
                 Console.Write($"\nBase Identified: {fromBase}");
@@ -47,7 +52,7 @@ namespace BaseDecoder
                 data = Assignment.AutoDecoder(data);
                 Console.WriteLine($"\nMost Probable Combination: {data}\n");
             }
-            else if (args[1].Equals("autoall", StringComparison.OrdinalIgnoreCase))
+            else if (args[1].Equals("autoall", o))
             {
                 fromBase = Assignment.BaseIdentifier(data);
                 if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
@@ -58,15 +63,24 @@ namespace BaseDecoder
                 Console.WriteLine($"\nThe program will try every single combination and output them sort them by entropy in case you chose ASCII");
                 Console.WriteLine($"Conversion of all cases from identified base {fromBase} to {resultBase}:\n");
 
+                List<string> combinations = Assignment.GetAllCombinations(data);
                 if (ascii) // If the output has to be in ASCII, sort results by entropy
                 {
                     Dictionary<string, double> entropies = [];
-                    foreach (string s in Assignment.GetAllCombinations(data))
+                    foreach (string s in combinations)
                     {
                         string result = Convert(s, fromBase, toBase, ascii);
                         entropies.Add(result, Entropy.Get(result));
                     }
-                    IOrderedEnumerable<KeyValuePair<string, double>> sortedEntropies = from entry in entropies orderby entry.Value ascending select entry;
+                    IOrderedEnumerable<KeyValuePair<string, double>> sortedEntropies;
+                    if (args.Length > 3 && (string.Equals(args[3], "yes", o) || string.Equals(args[3], "y", o)))
+                    {
+                        sortedEntropies = from entry in entropies orderby entry.Value descending select entry;
+                    }
+                    else
+                    {
+                        sortedEntropies = from entry in entropies orderby entry.Value ascending select entry;
+                    }
                     for (int i = 0; i < sortedEntropies.Count(); i++)
                     {
                         Console.WriteLine(sortedEntropies.ElementAt(i).Key + " - Entropy: " + sortedEntropies.ElementAt(i).Value);
@@ -74,14 +88,14 @@ namespace BaseDecoder
                 }
                 else
                 {
-                    foreach (string s in Assignment.GetAllCombinations(data))
+                    foreach (string s in combinations)
                     {
                         Console.WriteLine(Convert(s, fromBase, toBase, ascii));
                     }
                 }
                 Environment.Exit(0);
             }
-            else if (args[1].Equals("ASCII", StringComparison.OrdinalIgnoreCase) && !ascii)
+            else if (args[1].Equals("ASCII", o) && !ascii)
             {
                 fromAscii = true;
             }
@@ -157,14 +171,17 @@ namespace BaseDecoder
         }
 
 
-        private static void Error()
+        private static void Error(bool nonInline = false)
         {
-            Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase>");
-            Console.WriteLine("- Split more strings with spaces");
+            Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <inverse>");
+            Console.WriteLine("- <inverse> is only needed when using \"autoall\" and the default value is \"no\"");
+            Console.WriteLine("- Split groups of numbers with spaces");
             Console.WriteLine("- You can decode directly to ASCII by putting \"ASCII\" as the <toBase>");
             Console.WriteLine("- You can decode directly from ASCII by putting \"ASCII\" as the <fromBase>");
             Console.WriteLine("- You can put \"auto\" as <fromBase> to automatically identify the base of the string, trying the most probable combination");
             Console.WriteLine("- You can put \"autoall\" as <fromBase> to automatically identify the base of the string, trying every possible combination");
+            Console.WriteLine("-- In that case, results will be sorted by entropy (lowest to highest) and you can use \"yes\" or \"y\" as <inverse> to sort from highest to lowest");
+            if (nonInline) { Console.ReadKey(); }
             Environment.Exit(1);
         }
     }
