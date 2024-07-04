@@ -9,6 +9,7 @@ namespace BaseDecoder
     {
         readonly private static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
+        readonly private static int bruteforceMaxBase = 30;
 
         private static void Main(string[] args)
         {
@@ -22,6 +23,7 @@ namespace BaseDecoder
             bool fromAscii = false;
 
             // Checks
+            Console.Write(Environment.NewLine);
             if (args.Length < 1)
             {
                 Error(true);
@@ -35,32 +37,32 @@ namespace BaseDecoder
             {
                 ascii = true;
             }
-            else if (!int.TryParse(args[2], out toBase) || toBase <= 1)
+            else if (!int.TryParse(args[2], out toBase) || toBase < 2)
             {
                 Error();
             }
             if (ascii) { resultBase = "ASCII"; } else { resultBase = $"base {toBase}"; }
-            if (args[1].Equals("auto", o))
+            if (args[1].Equals("auto", o)) // Try out the most probable combination of the most probable base
             {
                 fromBase = Assignment.BaseIdentifier(data);
-                Console.Write($"\nBase Identified: {fromBase}");
+                Console.Write($"Base Identified: {fromBase}");
                 if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
                 {
                     Console.WriteLine("; this program cannot extract bases > 10");
                     Environment.Exit(1);
                 }
                 data = Assignment.AutoDecoder(data);
-                Console.WriteLine($"\nMost Probable Combination: {data}\n");
+                Console.WriteLine($"Most Probable Combination: {data}\n");
             }
-            else if (args[1].Equals("autoall", o))
+            else if (args[1].Equals("autoall", o)) // Try out every combination of the most probable base
             {
                 fromBase = Assignment.BaseIdentifier(data);
                 if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
                 {
-                    Console.WriteLine($"\nBase Identified: {fromBase}; this program cannot extract bases > 10");
+                    Console.WriteLine($"Base Identified: {fromBase}; this program cannot extract bases > 10");
                     Environment.Exit(1);
                 }
-                Console.WriteLine($"\nThe program will try every single combination and output them sort them by entropy in case you chose ASCII");
+                Console.WriteLine($"The program will try every single combination and output them sort them by entropy in case you chose ASCII");
                 Console.WriteLine($"Conversion of all cases from identified base {fromBase} to {resultBase}:\n");
 
                 List<string> combinations = Assignment.GetAllCombinations(data);
@@ -95,7 +97,26 @@ namespace BaseDecoder
                 }
                 Environment.Exit(0);
             }
-            else if (args[1].Equals("ASCII", o) && !ascii)
+            else if (args[1].Equals("bf", o) || args[1].Equals("bruteforce", o)) // Bruteforce the "fromBase" starting from lowest base possible (2)
+            {
+                Console.WriteLine($"Bruteforcing every base from 2 to {bruteforceMaxBase}...\n");
+                for (int i = 2; i <= bruteforceMaxBase; i++)
+                {
+                    Console.WriteLine($"From base {i} to {resultBase}:\n{Convert(data, i, toBase, ascii)}\n");
+                }
+                Environment.Exit(0);
+            }
+            else if (args[1].Equals("bfl", o) || args[1].Equals("bruteforceless", o) || args[1].Equals("bruteforcel", o)) // Bruteforce the "fromBase" starting from lowest base possible for that string
+            {
+                int minBase = Assignment.BaseIdentifier(data);
+                Console.WriteLine($"Bruteforcing every base from {minBase} to {bruteforceMaxBase}...\n");
+                for (int i = minBase; i <= bruteforceMaxBase; i++)
+                {
+                    Console.WriteLine($"From base {i} to {resultBase}:\n{Convert(data, i, toBase, ascii)}\n");
+                }
+                Environment.Exit(0);
+            }
+            else if (args[1].Equals("ASCII", o) && !ascii) // Input string is in ASCII
             {
                 fromAscii = true;
             }
@@ -106,39 +127,52 @@ namespace BaseDecoder
             if (fromAscii) { resultFromBase = "ASCII"; } else { resultFromBase = $"base {fromBase}"; }
 
             // Actual Code
-            Console.WriteLine($"Conversion from {resultFromBase} to {resultBase}:\n{Convert(data, fromBase, toBase, ascii, fromAscii)}\n");
+            Console.WriteLine($"Conversion from {resultFromBase} to {resultBase}:");
+            if (fromAscii)
+            {
+                Console.WriteLine(ConvertFromASCII(data, toBase));
+            }
+            else
+            {
+                Console.WriteLine(Convert(data, fromBase, toBase, ascii));
+            }
         }
 
 
-        private static string Convert(string data, int fromBase, int toBase, bool ascii, bool fromAscii = false)
+        private static string Convert(string data, int fromBase, int toBase, bool ascii)
         {
             string result = string.Empty;
-            if (fromAscii)
+            if (data.Contains(' '))
             {
-                Console.WriteLine("Work in progress..."); // TODO
+                string[] datas = data.Split(' ');
+                foreach (string info in datas)
+                {
+                    result += BaseToBase(info, fromBase, toBase, ascii);
+                    if (!ascii) { result += ' '; }
+                }
             }
-            else // Decode from ASCII to Base 10 and then from Base 10 to the wanted base
+            else
             {
-                if (data.Contains(' '))
-                {
-                    string[] datas = data.Split(' ');
-                    foreach (string info in datas)
-                    {
-                        result += BaseToBase(info, fromBase, toBase, ascii);
-                        if (!ascii) { result += ' '; }
-                    }
-                }
-                else
-                {
-                    result = BaseToBase(data, fromBase, toBase, ascii);
-                }
+                result = BaseToBase(data, fromBase, toBase, ascii);
             }
             return result;
+        }
+
+        private static string ConvertFromASCII(string data, int toBase)
+        {
+            string base10 = string.Empty;
+            for (int i = 0; i < data.Length; i++)
+            {
+                base10 += ((int)data[i]).ToString();
+                if (i != data.Length - 1) { base10 += ' '; }
+            }
+            return Convert(base10, 10, toBase, false);
         }
 
         public static string BaseToBase(string data, int inputBase, int outputBase, bool ascii = false)
         {
             long base10 = ToBase10(data, inputBase);
+            if (outputBase == 10) { return base10.ToString(); }
             if (ascii)
             {
                 return ((char)base10).ToString();
@@ -176,11 +210,14 @@ namespace BaseDecoder
             Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <inverse>");
             Console.WriteLine("- <inverse> is only needed when using \"autoall\" and the default value is \"no\"");
             Console.WriteLine("- Split groups of numbers with spaces");
-            Console.WriteLine("- You can decode directly to ASCII by putting \"ASCII\" as the <toBase>");
-            Console.WriteLine("- You can decode directly from ASCII by putting \"ASCII\" as the <fromBase>");
-            Console.WriteLine("- You can put \"auto\" as <fromBase> to automatically identify the base of the string, trying the most probable combination");
-            Console.WriteLine("- You can put \"autoall\" as <fromBase> to automatically identify the base of the string, trying every possible combination");
+            Console.WriteLine("- You can decode directly to ASCII by using \"ASCII\" as the <toBase>");
+            Console.WriteLine("- You can decode directly from ASCII by using \"ASCII\" as the <fromBase>");
+            Console.WriteLine($"- You can use \"bf\" or \"bruteforce\" as <fromBase> to try to convert from every base from 2 to {bruteforceMaxBase}");
+            Console.WriteLine($"- You can use \"bfl\" or \"bruteforceless\" as <fromBase> to try to convert from every base from the lowest possible for that string to {bruteforceMaxBase}");
+            Console.WriteLine("- You can use \"auto\" as <fromBase> to automatically identify the most probable base of the string, trying the most probable combination");
+            Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
             Console.WriteLine("-- In that case, results will be sorted by entropy (lowest to highest) and you can use \"yes\" or \"y\" as <inverse> to sort from highest to lowest");
+            Console.WriteLine("v0.3   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
             if (nonInline) { Console.ReadKey(); }
             Environment.Exit(1);
         }
