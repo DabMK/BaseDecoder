@@ -1,6 +1,8 @@
 <h1 align="center">BaseDecoder</h1>
 <h4 align="center">This is a very powerful tool that lets you manipulate string with bases encodings and decodings.</h4>
+
 ---
+
 ## Functionalities:
 - Convert a string from an input base to another input base
 - Convert a string from ASCII to an input base
