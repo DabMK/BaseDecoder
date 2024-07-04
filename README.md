@@ -1,3 +1,11 @@
-# BaseDecoder
-This is a very powerful tool that decodes string from various bases to other bases or ASCII. It an also identify the base of a string and it can convert complex strings to base-y forms to help solve ciphers
-This tool also sorts results by entropy
+<h1 align="center">BaseDecoder</h1>
+<h4 align="center">This is a very powerful tool that lets you manipulate string with bases encodings and decodings.</h4>
+---
+## Functionalities:
+- Convert a string from an input base to another input base
+- Convert a string from ASCII to an input base
+- Convert a string from an input base to ASCII
+- Convert a string to the most probable base (by its characters) using the most probable combinations and decode it
+- Convert a string to the most probable base (by its characters) brutefocing every combination and decode it
+- Bruteforce a string from a range of bases and decode it
+- Sort results by entropy (ascending or descending)
