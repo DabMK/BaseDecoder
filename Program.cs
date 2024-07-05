@@ -7,9 +7,9 @@ namespace BaseDecoder
 {
     internal class Program
     {
-        readonly private static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
-        readonly private static int bruteforceMaxBase = 30;
+        private static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        private static int bruteforceMaxBase = 20;
 
         private static void Main(string[] args)
         {
@@ -22,17 +22,30 @@ namespace BaseDecoder
             bool ascii = false;
             bool fromAscii = false;
 
-            // Checks
+            // CHECKS
             Console.Write(Environment.NewLine);
             if (args.Length < 1)
             {
                 Error(true);
             }
-            else if (args.Length != 3 && args.Length != 4)
+            else if (args.Length < 3)
             {
                 Error();
             }
-            data = args[0];
+            data = args[0]; // Set the data to encode
+            if (args.Length > 4) // Set character map
+            {
+                string newChars = args[4];
+                if (newChars.StartsWith("a", o) || newChars.StartsWith('+'))
+                {
+                    chars += newChars[1..];
+                }
+                else
+                {
+                    chars = newChars;
+                }
+            }
+
             if (args[2].Equals("ASCII", o)) // Check if output has to be in ASCII
             {
                 ascii = true;
@@ -97,20 +110,38 @@ namespace BaseDecoder
                 }
                 Environment.Exit(0);
             }
-            else if (args[1].Equals("bf", o) || args[1].Equals("bruteforce", o)) // Bruteforce the "fromBase" starting from lowest base possible (2)
+            else if (args[1].StartsWith("bfl", o) || args[1].StartsWith("bruteforceless", o) || args[1].StartsWith("bruteforcel", o)) // Bruteforce the "fromBase" starting from lowest base possible for that string
             {
-                Console.WriteLine($"Bruteforcing every base from 2 to {bruteforceMaxBase}...\n");
-                for (int i = 2; i <= bruteforceMaxBase; i++)
+                // Get the new max base if requested
+                string newBase = string.Empty;
+                for (int i = args[1].Length - 1; i > 2; i--)
+                {
+                    char c = args[1][i];
+                    if (char.IsDigit(c)) { newBase = c + newBase; }
+                }
+                if (!string.IsNullOrEmpty(newBase)) { _ = int.TryParse(newBase, out bruteforceMaxBase); }
+
+                int minBase = Assignment.BaseIdentifier(data);
+                Console.WriteLine($"Bruteforcing every base from {minBase} to {bruteforceMaxBase}...\n");
+                for (int i = minBase; i <= bruteforceMaxBase; i++)
                 {
                     Console.WriteLine($"From base {i} to {resultBase}:\n{Convert(data, i, toBase, ascii)}\n");
                 }
                 Environment.Exit(0);
             }
-            else if (args[1].Equals("bfl", o) || args[1].Equals("bruteforceless", o) || args[1].Equals("bruteforcel", o)) // Bruteforce the "fromBase" starting from lowest base possible for that string
+            else if (args[1].StartsWith("bf", o) || args[1].StartsWith("bruteforce", o)) // Bruteforce the "fromBase" starting from lowest base possible (2)
             {
-                int minBase = Assignment.BaseIdentifier(data);
-                Console.WriteLine($"Bruteforcing every base from {minBase} to {bruteforceMaxBase}...\n");
-                for (int i = minBase; i <= bruteforceMaxBase; i++)
+                // Get the new max base if requested
+                string newBase = string.Empty;
+                for (int i = args[1].Length - 1; i > 1; i--)
+                {
+                    char c = args[1][i];
+                    if (char.IsDigit(c)) { newBase = c + newBase; }
+                }
+                if (!string.IsNullOrEmpty(newBase)) { _ = int.TryParse(newBase, out bruteforceMaxBase); }
+
+                Console.WriteLine($"Bruteforcing every base from 2 to {bruteforceMaxBase}...\n");
+                for (int i = 2; i <= bruteforceMaxBase; i++)
                 {
                     Console.WriteLine($"From base {i} to {resultBase}:\n{Convert(data, i, toBase, ascii)}\n");
                 }
@@ -126,7 +157,7 @@ namespace BaseDecoder
             }
             if (fromAscii) { resultFromBase = "ASCII"; } else { resultFromBase = $"base {fromBase}"; }
 
-            // Actual Code
+            // Normal Execution Code
             Console.WriteLine($"Conversion from {resultFromBase} to {resultBase}:");
             if (fromAscii)
             {
@@ -141,6 +172,21 @@ namespace BaseDecoder
 
         private static string Convert(string data, int fromBase, int toBase, bool ascii)
         {
+            // Character Map Length Check with toBase
+            if (toBase > chars.Length)
+            {
+                Console.Write($"The base {toBase} is higher than the characters map length ({chars.Length}). Are you sure you want to proceed (y/n)? ");
+                char response = Console.ReadKey().KeyChar;
+                if (response == 'n' || response == 'N')
+                {
+                    Environment.Exit(0);
+                }
+                else
+                {
+                    Console.Write(Environment.NewLine);
+                }
+            }
+
             string result = string.Empty;
             if (data.Contains(' '))
             {
@@ -207,13 +253,16 @@ namespace BaseDecoder
 
         private static void Error(bool nonInline = false)
         {
-            Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <inverse>");
+            Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <inverse> <chars>");
+            Console.WriteLine("- Split groups of values with spaces");
             Console.WriteLine("- <inverse> is only needed when using \"autoall\" and the default value is \"no\"");
-            Console.WriteLine("- Split groups of numbers with spaces");
+            Console.WriteLine("- <chars> sets the characters to use; the default ones are \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\"");
+            Console.WriteLine("-- You can put \"a\" or \"+\" in front of the characters to use in <chars> to add them to the default ones");
             Console.WriteLine("- You can decode directly to ASCII by using \"ASCII\" as the <toBase>");
             Console.WriteLine("- You can decode directly from ASCII by using \"ASCII\" as the <fromBase>");
             Console.WriteLine($"- You can use \"bf\" or \"bruteforce\" as <fromBase> to try to convert from every base from 2 to {bruteforceMaxBase}");
-            Console.WriteLine($"- You can use \"bfl\" or \"bruteforceless\" as <fromBase> to try to convert from every base from the lowest possible for that string to {bruteforceMaxBase}");
+            Console.WriteLine($"-- You can use \"bfl\" or \"bruteforceless\" as <fromBase> to try to convert from every base from the lowest possible for that string to {bruteforceMaxBase}");
+            Console.WriteLine($"-- You can put a number at the end of <fromBase> to set the max base for the bruteforce (default is {bruteforceMaxBase})");
             Console.WriteLine("- You can use \"auto\" as <fromBase> to automatically identify the most probable base of the string, trying the most probable combination");
             Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
             Console.WriteLine("-- In that case, results will be sorted by entropy (lowest to highest) and you can use \"yes\" or \"y\" as <inverse> to sort from highest to lowest");
