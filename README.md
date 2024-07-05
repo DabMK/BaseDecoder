@@ -4,10 +4,11 @@
 ---
 
 ## Functionalities:
-- Convert a string from an input base to another input base
+- Convert a string from a base to another base
 - Convert a string from ASCII to an input base
 - Convert a string from an input base to ASCII
 - Convert a string to the most probable base (by its characters) using the most probable combinations and decode it
 - Convert a string to the most probable base (by its characters) brutefocing every combination and decode it
-- Bruteforce a string from a range of bases and decode it
+- Bruteforce a string from a custom range of bases and decode it
 - Sort results by entropy (ascending or descending)
+- Use custom characters to encode
