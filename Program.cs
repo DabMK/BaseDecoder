@@ -8,7 +8,7 @@ namespace BaseDecoder
     internal class Program
     {
         readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
-        private static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        public static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         private static int bruteforceMaxBase = 20;
 
         private static void Main(string[] args)
@@ -55,19 +55,7 @@ namespace BaseDecoder
                 Error();
             }
             if (ascii) { resultBase = "ASCII"; } else { resultBase = $"base {toBase}"; }
-            if (args[1].Equals("auto", o)) // Try out the most probable combination of the most probable base
-            {
-                fromBase = Assignment.BaseIdentifier(data);
-                Console.Write($"Base Identified: {fromBase}");
-                if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
-                {
-                    Console.WriteLine("; this program cannot extract bases > 10");
-                    Environment.Exit(1);
-                }
-                data = Assignment.AutoDecoder(data);
-                Console.WriteLine($"Most Probable Combination: {data}\n");
-            }
-            else if (args[1].Equals("autoall", o)) // Try out every combination of the most probable base
+            if (args[1].StartsWith("autoall", o)) // Try out every combination of the most probable base
             {
                 fromBase = Assignment.BaseIdentifier(data);
                 if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
@@ -77,6 +65,15 @@ namespace BaseDecoder
                 }
                 Console.WriteLine($"The program will try every single combination and output them sort them by entropy in case you chose ASCII");
                 Console.WriteLine($"Conversion of all cases from identified base {fromBase} to {resultBase}:\n");
+
+                // Check if outputs has to be put in a file
+                bool file = args[1].EndsWith("f", o);
+                string filePath = string.Empty;
+                if (file)
+                {
+                    filePath = $"{Path.GetTempPath()}basedecoder.txt";
+                    if (File.Exists(filePath)) { File.Delete(filePath); }
+                }
 
                 List<string> combinations = Assignment.GetAllCombinations(data);
                 if (ascii) // If the output has to be in ASCII, sort results by entropy
@@ -98,17 +95,34 @@ namespace BaseDecoder
                     }
                     for (int i = 0; i < sortedEntropies.Count(); i++)
                     {
-                        Console.WriteLine(sortedEntropies.ElementAt(i).Key + " - Entropy: " + sortedEntropies.ElementAt(i).Value);
+                        string currentResult = sortedEntropies.ElementAt(i).Key + " - Entropy: " + sortedEntropies.ElementAt(i).Value;
+                        Console.WriteLine(currentResult);
+                        if (file) { File.AppendAllText(filePath, currentResult + Environment.NewLine); }
                     }
                 }
                 else
                 {
                     foreach (string s in combinations)
                     {
-                        Console.WriteLine(Convert(s, fromBase, toBase, ascii));
+                        string currentResult = Convert(s, fromBase, toBase, ascii);
+                        Console.WriteLine(currentResult);
+                        if (file) { File.AppendAllText(filePath, currentResult + Environment.NewLine); }
                     }
                 }
+                if (file) { Console.WriteLine($"\nThe results were put in the file \"{filePath}\""); }
                 Environment.Exit(0);
+            }
+            else if (args[1].StartsWith("auto", o)) // Try out the most probable combination of the most probable base
+            {
+                fromBase = Assignment.BaseIdentifier(data);
+                Console.Write($"Base Identified: {fromBase}");
+                if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
+                {
+                    Console.WriteLine("; this program cannot extract bases > 10");
+                    Environment.Exit(1);
+                }
+                data = Assignment.AutoDecoder(data);
+                Console.WriteLine($"Most Probable Combination: {data}\n");
             }
             else if (args[1].StartsWith("bfl", o) || args[1].StartsWith("bruteforceless", o) || args[1].StartsWith("bruteforcel", o)) // Bruteforce the "fromBase" starting from lowest base possible for that string
             {
@@ -121,7 +135,7 @@ namespace BaseDecoder
                 }
                 if (!string.IsNullOrEmpty(newBase)) { _ = int.TryParse(newBase, out bruteforceMaxBase); }
 
-                int minBase = Assignment.BaseIdentifier(data);
+                int minBase = Assignment.MinimumBase(data);
                 Console.WriteLine($"Bruteforcing every base from {minBase} to {bruteforceMaxBase}...\n");
                 for (int i = minBase; i <= bruteforceMaxBase; i++)
                 {
@@ -199,7 +213,23 @@ namespace BaseDecoder
             }
             else
             {
-                result = BaseToBase(data, fromBase, toBase, ascii);
+                if (fromBase == 2 && data.Length > 7) // TODO: Autospace for all bases (now working only with 2)
+                {
+                    string semiResult = string.Empty;
+                    for (int i = 0; i < data.Length; i++)
+                    {
+                        semiResult += data[i];
+                        if ((i + 1) % 7 == 0 || i == data.Length - 1)
+                        {
+                            result += BaseToBase(semiResult, fromBase, toBase, ascii);
+                            semiResult = string.Empty;
+                        }
+                    }
+                }
+                else
+                {
+                    result = BaseToBase(data, fromBase, toBase, ascii);
+                }
             }
             return result;
         }
@@ -265,8 +295,9 @@ namespace BaseDecoder
             Console.WriteLine($"-- You can put a number at the end of <fromBase> to set the max base for the bruteforce (default is {bruteforceMaxBase})");
             Console.WriteLine("- You can use \"auto\" as <fromBase> to automatically identify the most probable base of the string, trying the most probable combination");
             Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
-            Console.WriteLine("-- In that case, results will be sorted by entropy (lowest to highest) and you can use \"yes\" or \"y\" as <inverse> to sort from highest to lowest");
-            Console.WriteLine("v0.3   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
+            Console.WriteLine("-- You can use \"autoallf\" as <fromBase> to write the results in a file that will be told to you at the end");
+            Console.WriteLine("-- Results will be sorted by entropy (ascending) and you can use \"yes\" or \"y\" as <inverse> to sort it descending");
+            Console.WriteLine("v0.6   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
             if (nonInline) { Console.ReadKey(); }
             Environment.Exit(1);
         }

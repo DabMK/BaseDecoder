@@ -53,6 +53,19 @@ namespace BaseDecoder
             return input.Replace(" ", "").Distinct().Count();
         }
 
+        public static int MinimumBase(string input)
+        {
+            string fasterInput = input.Replace(" ", "");
+            for (int i = 0; i < Program.chars.Length; i++)
+            {
+                if (!fasterInput.Contains(Program.chars[i]) || i == Program.chars.Length - 1)
+                {
+                    return i;
+                }
+            }
+            return 0;
+        }
+
         private static IEnumerable<List<T>> GetPermutations<T>(IEnumerable<T> list, int length)
         {
             if (length == 1) { return list.Select(t => new List<T> { t }); }
