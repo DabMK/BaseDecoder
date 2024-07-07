@@ -10,5 +10,5 @@
 - Convert a string to the most probable base (by its characters) using the most probable combinations and decode it
 - Convert a string to the most probable base (by its characters) brutefocing every combination and decode it
 - Bruteforce a string from a custom range of bases and decode it
-- Sort results by entropy (ascending or descending)
+- Sort results by entropy (ascending or descending) and save them in a file
 - Use custom characters to encode
