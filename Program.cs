@@ -58,11 +58,6 @@ namespace BaseDecoder
             if (args[1].StartsWith("autoall", o)) // Try out every combination of the most probable base
             {
                 fromBase = Assignment.BaseIdentifier(data);
-                if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
-                {
-                    Console.WriteLine($"Base Identified: {fromBase}; this program cannot extract bases > 10");
-                    Environment.Exit(1);
-                }
                 Console.WriteLine($"The program will try every single combination and output them sort them by entropy in case you chose ASCII");
                 Console.WriteLine($"Conversion of all cases from identified base {fromBase} to {resultBase}:\n");
 
@@ -82,6 +77,7 @@ namespace BaseDecoder
                     foreach (string s in combinations)
                     {
                         string result = Convert(s, fromBase, toBase, ascii);
+                        if (entropies.ContainsKey(result)) { continue; }
                         entropies.Add(result, Entropy.Get(result));
                     }
                     IOrderedEnumerable<KeyValuePair<string, double>> sortedEntropies;
@@ -116,13 +112,8 @@ namespace BaseDecoder
             {
                 fromBase = Assignment.BaseIdentifier(data);
                 Console.Write($"Base Identified: {fromBase}");
-                if (fromBase > 10) // If the identified base is > 10, extracting it would be very complicated (TODO)
-                {
-                    Console.WriteLine("; this program cannot extract bases > 10");
-                    Environment.Exit(1);
-                }
                 data = Assignment.AutoDecoder(data);
-                Console.WriteLine($"Most Probable Combination: {data}\n");
+                Console.WriteLine($"\nMost Probable Combination: {data}\n");
             }
             else if (args[1].StartsWith("bfl", o) || args[1].StartsWith("bruteforceless", o) || args[1].StartsWith("bruteforcel", o)) // Bruteforce the "fromBase" starting from lowest base possible for that string
             {
@@ -297,7 +288,7 @@ namespace BaseDecoder
             Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
             Console.WriteLine("-- You can use \"autoallf\" as <fromBase> to write the results in a file that will be told to you at the end");
             Console.WriteLine("-- Results will be sorted by entropy (ascending) and you can use \"yes\" or \"y\" as <inverse> to sort it descending");
-            Console.WriteLine("v0.7   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
+            Console.WriteLine("v0.8   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
             if (nonInline) { Console.ReadKey(); }
             Environment.Exit(1);
         }
