@@ -34,7 +34,7 @@ namespace BaseDecoder
             IEnumerable<List<int>> permutations = GetPermutations(Enumerable.Range(0, uniqueCount), uniqueCount);
 
             List<string> results = [];
-            foreach (var permutation in permutations)
+            foreach (List<int> permutation in permutations)
             {
                 Dictionary<char, int> charToNumberMap = [];
                 for (int i = 0; i < uniqueCount; i++)
@@ -56,11 +56,11 @@ namespace BaseDecoder
         public static int MinimumBase(string input)
         {
             string fasterInput = input.Replace(" ", "");
-            for (int i = 0; i < Program.chars.Length; i++)
+            for (int i = Program.chars.Length - 1; i >= 0; i--)
             {
-                if (!fasterInput.Contains(Program.chars[i]) || i == Program.chars.Length - 1)
+                if (fasterInput.Contains(Program.chars[i]))
                 {
-                    return i;
+                    return i + 1;
                 }
             }
             return 0;
