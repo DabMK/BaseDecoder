@@ -2,14 +2,21 @@
 using System.Linq;
 using System.Text;
 using System.Collections;
+using System.Runtime.InteropServices;
 
+#pragma warning disable SYSLIB1054 // Disabile warning for using DllImport
 namespace BaseDecoder
 {
     internal class Program
     {
+        // Import system APIs
+        [DllImport("kernel32.dll")]
+        static extern bool SetConsoleOutputCP(uint wCodePageID);
+        [DllImport("kernel32.dll")]
+        static extern bool SetConsoleCP(uint wCodePageID);
+
         readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
         public static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        private static int bruteforceMaxBase = 20;
 
         private static void Main(string[] args)
         {
@@ -21,6 +28,12 @@ namespace BaseDecoder
             int fromBase = 0;
             bool ascii = false;
             bool fromAscii = false;
+
+            // Set Unicode input and output
+            SetConsoleOutputCP(65001);
+            SetConsoleCP(65001);
+            Console.OutputEncoding = Encoding.UTF8;
+            Console.InputEncoding = Encoding.UTF8;
 
             // CHECKS
             Console.Write(Environment.NewLine);
@@ -58,7 +71,7 @@ namespace BaseDecoder
             if (args[1].StartsWith("autoall", o)) // Try out every combination of the most probable base
             {
                 fromBase = Assignment.BaseIdentifier(data);
-                Console.WriteLine($"The program will try every single combination and output them sort them by entropy in case you chose ASCII");
+                Console.WriteLine($"The program will try every single combination and sort them by entropy in case you chose ASCII");
                 Console.WriteLine($"Conversion of all cases from identified base {fromBase} to {resultBase}:\n");
 
                 // Check if outputs has to be put in a file
@@ -124,6 +137,7 @@ namespace BaseDecoder
                     char c = args[1][i];
                     if (char.IsDigit(c)) { newBase = c + newBase; }
                 }
+                int bruteforceMaxBase = chars.Length;
                 if (!string.IsNullOrEmpty(newBase)) { _ = int.TryParse(newBase, out bruteforceMaxBase); }
 
                 int minBase = Assignment.MinimumBase(data);
@@ -143,6 +157,7 @@ namespace BaseDecoder
                     char c = args[1][i];
                     if (char.IsDigit(c)) { newBase = c + newBase; }
                 }
+                int bruteforceMaxBase = chars.Length;
                 if (!string.IsNullOrEmpty(newBase)) { _ = int.TryParse(newBase, out bruteforceMaxBase); }
 
                 Console.WriteLine($"Bruteforcing every base from 2 to {bruteforceMaxBase}...\n");
@@ -281,9 +296,9 @@ namespace BaseDecoder
             Console.WriteLine("-- You can put \"a\" or \"+\" in front of the characters to use in <chars> to add them to the default ones");
             Console.WriteLine("- You can decode directly to ASCII by using \"ASCII\" as the <toBase>");
             Console.WriteLine("- You can decode directly from ASCII by using \"ASCII\" as the <fromBase>");
-            Console.WriteLine($"- You can use \"bf\" or \"bruteforce\" as <fromBase> to try to convert from every base from 2 to {bruteforceMaxBase}");
-            Console.WriteLine($"-- You can use \"bfl\" or \"bruteforceless\" as <fromBase> to try to convert from every base from the lowest possible for that string to {bruteforceMaxBase}");
-            Console.WriteLine($"-- You can put a number at the end of <fromBase> to set the max base for the bruteforce (default is {bruteforceMaxBase})");
+            Console.WriteLine($"- You can use \"bf\" or \"bruteforce\" as <fromBase> to try to convert from every base from 2 to the max for the chosen characters");
+            Console.WriteLine($"-- You can use \"bfl\" or \"bruteforceless\" as <fromBase> to try to convert from every base from the lowest possible for that string to the max for the chosen characters");
+            Console.WriteLine($"-- You can put a number at the end of <fromBase> to set the max base for the bruteforce (default is the max for the chosen characters)");
             Console.WriteLine("- You can use \"auto\" as <fromBase> to automatically identify the most probable base of the string, trying the most probable combination");
             Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
             Console.WriteLine("-- You can use \"autoallf\" as <fromBase> to write the results in a file that will be told to you at the end");
