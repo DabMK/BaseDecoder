@@ -18,16 +18,18 @@ namespace BaseDecoder
 
         readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
         public static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        public static int splitBits = 7;
-        public static bool splitAll = false;
-        public static bool dontSplit = false;
+        public static int splitBits = 0;        // Bits of each word to split
+        public static bool splitAll = false;    // Split all Inputs
+        public static bool split = false;       // Split power-2 bases inputs
+        public static bool sam = false;         // Sign&Magnitude
+        public static bool comp = false;        // Two's Complement
 
         private static void Main(string[] args)
         {
             // Set Variables
             string data;
-            string resultBase;
-            string resultFromBase;
+            string resultBase = string.Empty;
+            string resultFromBase = string.Empty;
             int toBase = 0;
             int fromBase = 0;
             bool ascii = false;
@@ -68,15 +70,29 @@ namespace BaseDecoder
             if (args[2].Equals("ASCII", o)) // Check if output has to be in ASCII
             {
                 ascii = true;
+                resultBase = "ASCII";
             }
-            else if (!int.TryParse(args[2], out toBase) || toBase < 2)
+            else if (args[2].Equals("sam", o) || args[2].Equals("signandmagnitude", o)) // Check if ouput has to be Sign&Magnitude
+            {
+                toBase = 2;
+                sam = true;
+                resultBase = "Sign&Magnitude Base 2";
+            }
+            else if (args[2].Equals("comp", o) || args[2].Equals("twoscomplement", o)) // Check if ouput has to be Two's Complement
+            {
+                toBase = 2;
+                comp = true;
+                resultBase = "Two's Complement Base 2";
+            }
+            else if (!int.TryParse(args[2], out toBase) || toBase < 2) // Set output base
             {
                 Error();
             }
-            if (ascii) { resultBase = "ASCII"; } else { resultBase = $"base {toBase}"; }
+            if (string.IsNullOrWhiteSpace(resultBase)) { resultBase = $"base {toBase}"; }
 
             if (args.Length > 3) // Set bits for each word
             {
+                split = true;
                 if (args[3].StartsWith("a", o))
                 {
                     splitAll = true;
@@ -86,7 +102,7 @@ namespace BaseDecoder
                 {
                     _ = int.TryParse(args[3], out splitBits);
                 }
-                if (splitBits < 1) { dontSplit = true; }
+                if (splitBits < 1) { split = false; }
             }
 
             if (args[1].StartsWith("autoall", o)) // Try out every combination of the most probable base
@@ -188,15 +204,28 @@ namespace BaseDecoder
                 }
                 Environment.Exit(0);
             }
+            else if (args[1].Equals("sam", o) || args[1].Equals("signandmagnitude", o)) // Input string is in Sign&Magnitude Base2
+            {
+                fromBase = 2;
+                sam = true;
+                resultFromBase = "Sign&Magnitude Base 2";
+            }
+            else if (args[1].Equals("comp", o) || args[1].Equals("twoscomplement", o)) // Input string is in Two's Complement Base2
+            {
+                fromBase = 2;
+                comp = true;
+                resultFromBase = "Two's Complement Base 2";
+            }
             else if (args[1].Equals("ASCII", o) && !ascii) // Input string is in ASCII
             {
                 fromAscii = true;
+                resultFromBase = "ASCII";
             }
             else if (!int.TryParse(args[1], out fromBase) || fromBase <= 1)
             {
                 Error();
             }
-            if (fromAscii) { resultFromBase = "ASCII"; } else { resultFromBase = $"base {fromBase}"; }
+            if (string.IsNullOrWhiteSpace(resultFromBase)) { resultFromBase = $"base {fromBase}"; }
 
             // Normal Execution Code
             Console.WriteLine($"Conversion from {resultFromBase} to {resultBase}:");
@@ -229,7 +258,7 @@ namespace BaseDecoder
 
             for (int i = 0; i < data.Length; i++) // Check if the data isn't in the right base
             {
-                if (data[i] == ' ') { continue; }
+                if (data[i] == ' ' || data[i] == '-') { continue; }
                 bool ok = false;
                 for (int j = 0; j < fromBase; j++)
                 {
@@ -241,7 +270,7 @@ namespace BaseDecoder
                 }
                 if (!ok)
                 {
-                    Warning($"The input data contains \"{data[i]}\", that according to the current character map isn't part of the base {fromBase}. Results are gonna be unaccurate. Are you sure you want to proceed (y/n)? ", false);
+                    Warning($"The input data contains \"{data[i]}\", that according to the current character map isn't part of the base {fromBase}. Results are gonna be inaccurate. Are you sure you want to proceed (y/n)? ", false);
                     char response = Console.ReadKey().KeyChar;
                     if (response == 'n' || response == 'N')
                     {
@@ -267,7 +296,7 @@ namespace BaseDecoder
             else
             {
                 int digits = (int)Math.Ceiling(splitBits * Math.Log(2, fromBase));
-                if (!dontSplit && (IsPowerOf2(fromBase) || splitAll) && data.Length > digits) // Check if the starting base is a power of 2 and if there are enough digits to split
+                if (split && (IsPowerOf2(fromBase) || splitAll) && data.Length >= (2 * digits)) // Check if the starting base is a power of 2 and if there are enough digits to split
                 { // Auto split chunks of data every "splitBits" (converted in "digits" for every base) bit for power-2 base decoding
                     var sb = new StringBuilder();
                     string semi = "";
@@ -304,9 +333,18 @@ namespace BaseDecoder
 
         public static string BaseToBase(string data, int inputBase, int outputBase, bool ascii = false)
         {
-            long base10 = ToBase10(data, inputBase);
-            if (outputBase == 10) { return base10.ToString(); }
-            if (ascii)
+            long base10;
+            if (inputBase == 10) // Skip base10 conversion if input base is already 10
+            {
+                if (!long.TryParse(data, out base10)) { Error(false, "Input isn't in base 10!"); } // Throw error if the input isn't actually in base10
+            }
+            else
+            {
+                base10 = ToBase10(data, inputBase);
+            }
+            if (outputBase == 10) { return base10.ToString(); } // Immediately return result if requested output base is 10
+
+            if (ascii) // Check if has to oputput ascii or not
             {
                 return ((char)base10).ToString();
             }
@@ -316,31 +354,104 @@ namespace BaseDecoder
             }
         }
 
-        private static string FromBase10(long input, int outputBase)
+        private static string FromBase10(long input, int outputBase) // TODO: Sign&Magnitude and Two's Complement encoding broken when it needs to add more bits
         {
-            if (input == 0) { return "0"; }
             string result = string.Empty;
+            int bitWidth = 0;
+            int hasToAddMSB = 0; // 0 = No, 1 = Negative, 2 = Positive
+            bool hasToBeComplemented = false;
+            if (input == 0) { return "0"; }
+
+            if (outputBase == 2)
+            {
+                bitWidth = GetMinBits(input);
+                if (sam) // Encode in Sign&Magnitude
+                {
+                    if (input < 0)
+                    {
+                        hasToAddMSB = 1;
+                    }
+                    else
+                    {
+                        hasToAddMSB = 2;
+                    }
+                }
+                else if (comp) // Encode in Two's Complement
+                {
+                    if (input < 0)
+                    {
+                        input = -input; // Get the opposite of the input
+                        hasToBeComplemented = true;
+                    }
+                    else
+                    {
+                        hasToAddMSB = 2;
+                    }
+                }
+            }
+
             while (input > 0)
             {
                 result = chars[(int)(input % outputBase)] + result;
                 input /= outputBase;
+            }
+
+            if (outputBase == 2)
+            {
+                int targetBits = bitWidth;
+                if (hasToBeComplemented)
+                {
+                    string invertedResult = string.Empty;
+
+                    foreach (char c in result) { invertedResult += (c == '0') ? '1' : '0'; }
+                    string final = System.Convert.ToString(System.Convert.ToInt64(invertedResult, 2) + 1, 2);
+                    return final.PadLeft(targetBits, '0');
+                }
+                if (hasToAddMSB != 0)
+                {
+                    if (hasToAddMSB == 1) { result = "1" + result; }
+                    else { result = "0" + result; }
+
+                    return result.PadLeft(targetBits, '0');
+                }
+                return result.PadLeft(targetBits, '0');
             }
             return result;
         }
 
         private static long ToBase10(string input, int inputBase)
         {
+            bool negative = false;
+            if (inputBase == 2)
+            {
+                char msb = input[0];
+                if (sam) // Decode from Sign&Magnitude
+                {
+                    if (msb == '1')
+                    {
+                        negative = true;
+                    }
+                    input = input[1..]; // Remove msb
+                }
+                else if (comp) // Decode from Two's Complement
+                {
+                    if (msb == '1')
+                    {
+                        string inputm1 = System.Convert.ToString(System.Convert.ToInt64(input, 2) - 1, 2); // Remove 1 from input
+                        string invertedInputm1 = string.Empty; foreach (char c in inputm1) { if (c == '0') { invertedInputm1 += "1"; } else { invertedInputm1 += "0"; } } // Invert Bits
+                        negative = true; // Mark the number as negative
+                        input = invertedInputm1;
+                    }
+                }
+            }
+
             long result = 0;
             foreach (char c in input.ToUpper())
             {
                 result = result * inputBase + chars.IndexOf(c);
             }
+            if (negative) { result = -result; }
             return result;
-        }
-
-        private static bool IsPowerOf2(int input)
-        {
-            return (input & (input - 1)) == 0;
         }
 
 
@@ -352,13 +463,20 @@ namespace BaseDecoder
             Console.ForegroundColor = oldColor;
         }
 
-        private static void Error(bool nonInline = false)
+        private static void Error(bool nonInline = false, string errorMsg = "")
         {
+            if (!string.IsNullOrWhiteSpace(errorMsg))
+            {
+                ConsoleColor oldColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[ERROR] - {errorMsg}");
+                Console.ForegroundColor = oldColor;
+            }
             Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <bits> <inverse> <chars>");
             Console.WriteLine("- Split groups of values with spaces or use <bits>");
-            Console.WriteLine("- <bits> lets you choose how many bits to use for each word if you don't split with spaces (default is 7, splits only bases that are powers of 2)");
+            Console.WriteLine("- <bits> lets you choose how many bits to use for each word if you don't split with spaces and if the input base is a power of 2 (usually they're split every 7 or 8 bits)");
+            Console.WriteLine("-- By default strings are not split, and you can use \"0\" as <bits> to tell the program to not split data");
             Console.WriteLine("-- You can put a \"a\" in front of <bits> to split every base (not oly powers of 2) with the chosen amount of bits (Make sure that the input data is 0-padded)");
-            Console.WriteLine("-- You can use \"0\" as <bits> to tell the program to not split the non-spaced data");
             Console.WriteLine("- <inverse> is only needed when using \"autoall\" and the default value is \"no\"");
             Console.WriteLine("- <chars> sets the characters to use; the default ones are \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\"");
             Console.WriteLine("-- You can put \"a\" or \"+\" in front of the characters to use in <chars> to add them to the default ones");
@@ -371,9 +489,29 @@ namespace BaseDecoder
             Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
             Console.WriteLine("-- You can use \"autoallf\" as <fromBase> to write the results in a file that will be told to you at the end");
             Console.WriteLine("-- Results will be sorted by entropy (ascending) and you can use \"yes\" or \"y\" as <inverse> to sort it descending");
+            Console.WriteLine("- You can use \"sam\" as <fromBase> or <toBase> to decode or encode from Base2 through Sign&Magnitude"); // TODO encoding:    BROKEN (see above)
+            Console.WriteLine("- You can use \"comp\" as <fromBase> or <toBase> to decode or encode from Base2 through Two's Complement"); // TODO encoding: BROKEN (see above)
+            Console.WriteLine("- You can use \"fixed\" as <fromBase> to decode from Base2 through Fixed Point"); // TODO
+            Console.WriteLine("- You can use \"floating\" as <fromBase> to decode from Base2 through Floating Point"); // TODO
             Console.WriteLine("v0.9   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
             if (nonInline) { Console.ReadKey(); }
             Environment.Exit(1);
+        }
+
+
+        // HELPER FUNCTIONS
+
+        private static bool IsPowerOf2(int input)
+        {
+            return (input & (input - 1)) == 0;
+        }
+
+        private static int GetMinBits(long value)
+        {
+            value = Math.Abs(value);
+            int bits = 1;
+            while ((1L << bits) <= value) bits++;
+            return bits + 1; // +1 for sign / safety
         }
     }
 }
