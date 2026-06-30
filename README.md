@@ -1,5 +1,5 @@
 <h1 align="center">BaseDecoder</h1>
-<h4 align="center">This is a very powerful tool that lets you manipulate string with base encodings and decodings.</h4>
+<h4 align="center">Very powerful tool to manipulate string with base encodings and decodings.</h4>
 
 ---
 
