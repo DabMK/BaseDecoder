@@ -1,8 +1,9 @@
 ﻿using System;
-using System.Linq;
-using System.Text;
 using System.Collections;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.Arm;
+using System.Text;
 
 #pragma warning disable SYSLIB1054 // Disabile warning for using DllImport
 namespace BaseDecoder
@@ -17,6 +18,9 @@ namespace BaseDecoder
 
         readonly private static StringComparison o = StringComparison.OrdinalIgnoreCase;
         public static string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        public static int splitBits = 7;
+        public static bool splitAll = false;
+        public static bool dontSplit = false;
 
         private static void Main(string[] args)
         {
@@ -45,10 +49,12 @@ namespace BaseDecoder
             {
                 Error();
             }
+
             data = args[0]; // Set the data to encode
-            if (args.Length > 4) // Set character map
+
+            if (args.Length > 5) // Set character map
             {
-                string newChars = args[4];
+                string newChars = args[5];
                 if (newChars.StartsWith("a", o) || newChars.StartsWith('+'))
                 {
                     chars += newChars[1..];
@@ -68,6 +74,21 @@ namespace BaseDecoder
                 Error();
             }
             if (ascii) { resultBase = "ASCII"; } else { resultBase = $"base {toBase}"; }
+
+            if (args.Length > 3) // Set bits for each word
+            {
+                if (args[3].StartsWith("a", o))
+                {
+                    splitAll = true;
+                    _ = int.TryParse(args[3][1..], out splitBits);
+                }
+                else
+                {
+                    _ = int.TryParse(args[3], out splitBits);
+                }
+                if (splitBits < 1) { dontSplit = true; }
+            }
+
             if (args[1].StartsWith("autoall", o)) // Try out every combination of the most probable base
             {
                 fromBase = Assignment.BaseIdentifier(data);
@@ -94,7 +115,7 @@ namespace BaseDecoder
                         entropies.Add(result, Entropy.Get(result));
                     }
                     IOrderedEnumerable<KeyValuePair<string, double>> sortedEntropies;
-                    if (args.Length > 3 && (string.Equals(args[3], "yes", o) || string.Equals(args[3], "y", o)))
+                    if (args.Length > 4 && (string.Equals(args[4], "yes", o) || string.Equals(args[4], "y", o))) // Check if to sort results descending or ascending
                     {
                         sortedEntropies = from entry in entropies orderby entry.Value descending select entry;
                     }
@@ -192,10 +213,9 @@ namespace BaseDecoder
 
         private static string Convert(string data, int fromBase, int toBase, bool ascii)
         {
-            // Character Map Length Check with toBase
-            if (toBase > chars.Length)
+            if (toBase > chars.Length) // Check if the base is higher than the character map
             {
-                Console.Write($"The base {toBase} is higher than the characters map length ({chars.Length}). Are you sure you want to proceed (y/n)? ");
+                Warning($"The base {toBase} is higher than the characters map length ({chars.Length}). Are you sure you want to proceed (y/n)? ", false);
                 char response = Console.ReadKey().KeyChar;
                 if (response == 'n' || response == 'N')
                 {
@@ -204,6 +224,33 @@ namespace BaseDecoder
                 else
                 {
                     Console.Write(Environment.NewLine);
+                }
+            }
+
+            for (int i = 0; i < data.Length; i++) // Check if the data isn't in the right base
+            {
+                if (data[i] == ' ') { continue; }
+                bool ok = false;
+                for (int j = 0; j < fromBase; j++)
+                {
+                    if (data[i] == chars[j])
+                    {
+                        ok = true;
+                        break;
+                    }
+                }
+                if (!ok)
+                {
+                    Warning($"The input data contains \"{data[i]}\", that according to the current character map isn't part of the base {fromBase}. Results are gonna be unaccurate. Are you sure you want to proceed (y/n)? ", false);
+                    char response = Console.ReadKey().KeyChar;
+                    if (response == 'n' || response == 'N')
+                    {
+                        Environment.Exit(0);
+                    }
+                    else
+                    {
+                        Console.Write(Environment.NewLine);
+                    }
                 }
             }
 
@@ -219,18 +266,22 @@ namespace BaseDecoder
             }
             else
             {
-                if (fromBase == 2 && data.Length > 7) // TODO: Autospace for all bases (now working only with 2)
-                {
-                    string semiResult = string.Empty;
+                int digits = (int)Math.Ceiling(splitBits * Math.Log(2, fromBase));
+                if (!dontSplit && (IsPowerOf2(fromBase) || splitAll) && data.Length > digits) // Check if the starting base is a power of 2 and if there are enough digits to split
+                { // Auto split chunks of data every "splitBits" (converted in "digits" for every base) bit for power-2 base decoding
+                    var sb = new StringBuilder();
+                    string semi = "";
+
                     for (int i = 0; i < data.Length; i++)
                     {
-                        semiResult += data[i];
-                        if ((i + 1) % 7 == 0 || i == data.Length - 1)
+                        semi += data[i];
+                        if ((i + 1) % digits == 0 || i == data.Length - 1)
                         {
-                            result += BaseToBase(semiResult, fromBase, toBase, ascii);
-                            semiResult = string.Empty;
+                            sb.Append(BaseToBase(semi, fromBase, toBase, ascii));
+                            semi = "";
                         }
                     }
+                    result = sb.ToString();
                 }
                 else
                 {
@@ -267,6 +318,7 @@ namespace BaseDecoder
 
         private static string FromBase10(long input, int outputBase)
         {
+            if (input == 0) { return "0"; }
             string result = string.Empty;
             while (input > 0)
             {
@@ -286,11 +338,27 @@ namespace BaseDecoder
             return result;
         }
 
+        private static bool IsPowerOf2(int input)
+        {
+            return (input & (input - 1)) == 0;
+        }
+
+
+        private static void Warning(string msg, bool writeline = true)
+        {
+            ConsoleColor oldColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            if (writeline) { Console.WriteLine($"[WARNING] - {msg}"); } else { Console.Write($"[WARNING] - {msg}"); }
+            Console.ForegroundColor = oldColor;
+        }
 
         private static void Error(bool nonInline = false)
         {
-            Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <inverse> <chars>");
-            Console.WriteLine("- Split groups of values with spaces");
+            Console.WriteLine("Usage:\nBaseDecoder <string> <fromBase> <toBase> <bits> <inverse> <chars>");
+            Console.WriteLine("- Split groups of values with spaces or use <bits>");
+            Console.WriteLine("- <bits> lets you choose how many bits to use for each word if you don't split with spaces (default is 7, splits only bases that are powers of 2)");
+            Console.WriteLine("-- You can put a \"a\" in front of <bits> to split every base (not oly powers of 2) with the chosen amount of bits (Make sure that the input data is 0-padded)");
+            Console.WriteLine("-- You can use \"0\" as <bits> to tell the program to not split the non-spaced data");
             Console.WriteLine("- <inverse> is only needed when using \"autoall\" and the default value is \"no\"");
             Console.WriteLine("- <chars> sets the characters to use; the default ones are \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\"");
             Console.WriteLine("-- You can put \"a\" or \"+\" in front of the characters to use in <chars> to add them to the default ones");
@@ -298,12 +366,12 @@ namespace BaseDecoder
             Console.WriteLine("- You can decode directly from ASCII by using \"ASCII\" as the <fromBase>");
             Console.WriteLine($"- You can use \"bf\" or \"bruteforce\" as <fromBase> to try to convert from every base from 2 to the max for the chosen characters");
             Console.WriteLine($"-- You can use \"bfl\" or \"bruteforceless\" as <fromBase> to try to convert from every base from the lowest possible for that string to the max for the chosen characters");
-            Console.WriteLine($"-- You can put a number at the end of <fromBase> to set the max base for the bruteforce (default is the max for the chosen characters)");
+            Console.WriteLine($"-- You can put a number at the end of <fromBase> when using bruteforce to set the max base for the bruteforce (default is the max for the chosen characters)");
             Console.WriteLine("- You can use \"auto\" as <fromBase> to automatically identify the most probable base of the string, trying the most probable combination");
             Console.WriteLine("- You can use \"autoall\" as <fromBase> to automatically identify the most probable base of the string, trying every possible combination");
             Console.WriteLine("-- You can use \"autoallf\" as <fromBase> to write the results in a file that will be told to you at the end");
             Console.WriteLine("-- Results will be sorted by entropy (ascending) and you can use \"yes\" or \"y\" as <inverse> to sort it descending");
-            Console.WriteLine("v0.8   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
+            Console.WriteLine("v0.9   -   Check \"https://github.com/DabMK/BaseDecoder\" for updates");
             if (nonInline) { Console.ReadKey(); }
             Environment.Exit(1);
         }
