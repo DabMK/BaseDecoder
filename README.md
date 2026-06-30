@@ -12,6 +12,8 @@
 - Bruteforce a string from a custom range of bases and decode it
 - Sort results by entropy (ascending or descending) and save them in a file
 - Use custom characters to encode
+- Encode and decode base10 negative numbers with Sign and Magnitude or Two's Complement
+- Encode and decode base10 decimal numbers with Fixed Point or Floating Point (TODO)
 
 ## Usages:
 - You can use this program to decode and encode strings by messing with bits and advanced base encoding strategies
