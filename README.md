@@ -1,5 +1,5 @@
 <h1 align="center">BaseDecoder</h1>
-<h4 align="center">Very powerful tool to manipulate string with base encodings and decodings.</h4>
+<h4 align="center">Very powerful tool to manipulate strings with base encodings and decodings.</h4>
 
 ---
 
@@ -12,3 +12,6 @@
 - Bruteforce a string from a custom range of bases and decode it
 - Sort results by entropy (ascending or descending) and save them in a file
 - Use custom characters to encode
+
+## Usages:
+- You can use this program to decode and encode strings by messing with bits and advanced base encoding strategies
